@@ -13,12 +13,6 @@
         "AZ2":{
             "Type":"AWS::EC2::AvailabilityZone::Name",
             "Description":"Availability Zone 2 for VPC"
-        },
-        "OfficeIP1": {
-            "Type": "String"
-        },
-        "OfficeIP2": {
-            "Type": "String"
         }
     },
     "Resources": {
