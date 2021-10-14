@@ -1,0 +1,313 @@
+{
+    "AWSTemplateFormatVersion": "2010-09-09",
+    "Parameters": {
+        "VPC": {
+            "Type": "String",
+            "Default": "",
+            "Description": "Name of the VPC."
+        },
+        "AZ1":{
+            "Type":"AWS::EC2::AvailabilityZone::Name",
+            "Description":"Availability Zone 1 for VPC"
+        },
+        "AZ2":{
+            "Type":"AWS::EC2::AvailabilityZone::Name",
+            "Description":"Availability Zone 2 for VPC"
+        },
+        "OfficeIP1": {
+            "Type": "String"
+        },
+        "OfficeIP2": {
+            "Type": "String"
+        }
+    },
+    "Resources": {
+        "PubPrivateVPC": {
+            "Type": "AWS::EC2::VPC",
+            "Properties": {
+                "CidrBlock": "10.0.0.0/24",
+                "Tags" : [ 
+                    {"Key" : "Name", "Value" : {"Ref": "VPC"}} 
+                ]
+            }
+        },
+        "PublicSubnet1": {
+            "Type": "AWS::EC2::Subnet",
+            "Properties": {
+                "VpcId": {
+                    "Ref": "PubPrivateVPC"
+                },
+                "AvailabilityZone": {
+                    "Ref" : "AZ1"
+                },
+                "CidrBlock": "10.0.0.0/26",
+                "MapPublicIpOnLaunch": true
+            }
+        },
+        "PublicSubnet2": {
+            "Type": "AWS::EC2::Subnet",
+            "Properties": {
+                "VpcId": {
+                    "Ref": "PubPrivateVPC"
+                },
+                "AvailabilityZone": {
+                    "Ref" : "AZ2"
+                },
+                "CidrBlock": "10.0.0.64/26",
+                "MapPublicIpOnLaunch": true
+            }
+        },
+        "PrivateSubnet1": {
+            "Type": "AWS::EC2::Subnet",
+            "Properties": {
+                "VpcId": {
+                    "Ref": "PubPrivateVPC"
+                },
+                "AvailabilityZone": {
+                    "Ref" : "AZ1"
+                },
+                "CidrBlock": "10.0.0.128/26",
+                "MapPublicIpOnLaunch": false
+            }
+        },
+        "PrivateSubnet2": {
+            "Type": "AWS::EC2::Subnet",
+            "Properties": {
+                "VpcId": {
+                    "Ref": "PubPrivateVPC"
+                },
+                "AvailabilityZone": {
+                    "Ref" : "AZ2"
+                },
+                "CidrBlock": "10.0.0.192/26",
+                "MapPublicIpOnLaunch": false
+            }
+        },
+        "InternetGateway": {
+            "Type": "AWS::EC2::InternetGateway",
+            "Properties": {
+                "Tags": [
+                    {
+                        "Key": "Name",
+                        "Value": "MYIG"
+                    }
+                ]
+            }
+        },
+        "GatewayToInternet": {
+            "Type": "AWS::EC2::VPCGatewayAttachment",
+            "Properties": {
+                "VpcId": {
+                    "Ref": "PubPrivateVPC"
+                },
+                "InternetGatewayId": {
+                    "Ref": "InternetGateway"
+                }
+            }
+        },
+        "PublicRouteTable": {
+            "Type": "AWS::EC2::RouteTable",
+            "Properties": {
+                "VpcId": {
+                    "Ref": "PubPrivateVPC"
+                }
+            }
+        },
+        "PublicRoute": {
+            "Type": "AWS::EC2::Route",
+            "DependsOn": "GatewayToInternet",
+            "Properties": {
+                "RouteTableId": {
+                    "Ref": "PublicRouteTable"
+                },
+                "DestinationCidrBlock": "0.0.0.0/0",
+                "GatewayId": {
+                    "Ref": "InternetGateway"
+                }
+            }
+        },
+        "PublicSubnet1RouteTableAssociation": {
+            "Type": "AWS::EC2::SubnetRouteTableAssociation",
+            "Properties": {
+                "SubnetId": {
+                    "Ref": "PublicSubnet1"
+                },
+                "RouteTableId": {
+                    "Ref": "PublicRouteTable"
+                }
+            }
+        },
+        "PublicSubnet2RouteTableAssociation": {
+            "Type": "AWS::EC2::SubnetRouteTableAssociation",
+            "Properties": {
+                "SubnetId": {
+                    "Ref": "PublicSubnet2"
+                },
+                "RouteTableId": {
+                    "Ref": "PublicRouteTable"
+                }
+            }
+        },
+        
+        "ElbSecurityGroup": {
+            "Type": "AWS::EC2::SecurityGroup",
+            "Properties": {
+                "GroupName": "ELBSecurityGroup",
+                "GroupDescription": "Security Group for ELB",
+                "VpcId":{
+                    "Ref":"PubPrivateVPC"
+                },
+                "SecurityGroupIngress": [
+                    {
+                        "IpProtocol": "tcp",
+                        "FromPort": "80",
+                        "ToPort": "80",
+                        "CidrIp": "0.0.0.0/0"
+                    }
+                ]
+            }
+        },
+        "WebServerSecurityGroup" : {
+            "Type" : "AWS::EC2::SecurityGroup",
+            "Properties" : {
+                "GroupDescription" : "Enable HTTP access via port 80 locked down to the ELB and SSH access",
+		        "VpcId" : { "Ref" : "PubPrivateVPC" },
+                "SecurityGroupIngress" : [
+                    {"IpProtocol" : "tcp", "FromPort" : "80", "ToPort" : "80", "SourceSecurityGroupId" : { "Ref" : "ElbSecurityGroup"} },
+                    {"IpProtocol" : "tcp", "FromPort" : "22", "ToPort" : "22", "CidrIp" : "0.0.0.0/0"}
+                    ]
+                }
+            },
+
+	    "StageDBEC2SecurityGroup": {
+            "Type": "AWS::EC2::SecurityGroup",
+            "Properties" : {
+                "GroupDescription": "Open staging database for access",
+		        "VpcId" : { "Ref" : "PubPrivateVPC" },
+                "SecurityGroupIngress" : [{
+                "IpProtocol" : "tcp",
+                "FromPort" : "3306", 
+                "ToPort" : "3306",
+                "SourceSecurityGroupId" : { "Ref" : "WebServerSecurityGroup"}
+                }]
+            }
+        },
+
+    	"StageDBSubnetGroup" : {
+            "Type" : "AWS::RDS::DBSubnetGroup",
+            "Properties" : {
+                "DBSubnetGroupDescription" : "WebServer DB subnet group for staging",
+                "SubnetIds" : [{ "Ref" : "PrivateSubnet1" }, {  "Ref" : "PrivateSubnet2" } ]
+                }
+            },
+            
+        "NatGateway": {
+            "Type": "AWS::EC2::NatGateway",
+            "DependsOn": "NatPublicIP",
+            "Properties": {
+                "AllocationId": {
+                    "Fn::GetAtt": [
+                        "NatPublicIP",
+                        "AllocationId"
+                    ]
+                },
+                "SubnetId": {
+                    "Ref": "PublicSubnet1"
+                }
+            }
+        },
+        "NatPublicIP": {
+            "Type": "AWS::EC2::EIP",
+            "DependsOn": "PubPrivateVPC",
+            "Properties": {
+                "Domain": "vpc"
+            }
+        },
+        "PrivateRouteTable": {
+            "Type": "AWS::EC2::RouteTable",
+            "Properties": {
+                "VpcId": {
+                    "Ref": "PubPrivateVPC"
+                }
+            }
+        },
+        "PrivateRoute": {
+            "Type": "AWS::EC2::Route",
+            "Properties": {
+                "RouteTableId": {
+                    "Ref": "PrivateRouteTable"
+                },
+                "DestinationCidrBlock": "0.0.0.0/0",
+                "NatGatewayId": {
+                    "Ref": "NatGateway"
+                }
+            }
+        },
+        "PrivateSubnet1RouteTableAssociation": {
+            "Type": "AWS::EC2::SubnetRouteTableAssociation",
+            "Properties": {
+                "SubnetId": {
+                    "Ref": "PrivateSubnet1"
+                },
+                "RouteTableId": {
+                    "Ref": "PrivateRouteTable"
+                }
+            }
+        },
+        "PrivateSubnet2RouteTableAssociation": {
+            "Type": "AWS::EC2::SubnetRouteTableAssociation",
+            "Properties": {
+                "SubnetId": {
+                    "Ref": "PrivateSubnet2"
+                },
+                "RouteTableId": {
+                    "Ref": "PrivateRouteTable"
+                }
+            }
+        }
+    },
+    "Outputs" : {
+
+            "PrivateSubnetAz1" : {
+                "Value" : { "Ref" : "PrivateSubnet1" },
+                "Description" : "Name of the Private Subnet",
+                "Export" : { "Name" : {"Fn::Sub": "${AWS::StackName}-PrivateSubnetAz1" }}
+            },
+            "PrivateSubnetAz2" : {
+                "Value" : { "Ref" : "PrivateSubnet2" },
+                "Description" : "Name of second Private Subnet",
+                "Export" : { "Name" : {"Fn::Sub": "${AWS::StackName}-PrivateSubnetAz2" }}
+            },
+            "PublicSubnetAz1" : {
+                "Value" : { "Ref" : "PublicSubnet1" },
+                "Description" : "Name of the Public Subnet",
+                "Export" : { "Name" : {"Fn::Sub": "${AWS::StackName}-PublicSubnetAz1" }}
+            },
+            "PublicSubnetAz2" : {
+                "Value" : { "Ref" : "PublicSubnet2" },
+                "Description" : "Name of second Public Subnet",
+                "Export" : { "Name" : {"Fn::Sub": "${AWS::StackName}-PublicSubnetAz2" }}
+            },
+
+            "WebServerSecurityGroup" :{
+                "Value": {"Ref": "WebServerSecurityGroup"},
+                "Description" : "Web Server Security Group",
+                "Export" : { "Name" : {"Fn::Sub": "${AWS::StackName}-WebServerSecurityGroup" }}
+            },
+            
+            "ElbSecurityGroup": {
+                "Value": {"Ref" : "ElbSecurityGroup" },
+                "Description" : "ELB Security Group" ,
+                "Export": { "Name" : {"Fn::Sub": "${AWS::StackName}-ElbSecurityGroup" } }
+            },
+
+            "VPCID" : {
+                "Value" : { "Ref" : "PubPrivateVPC" },
+                "Description" : "VPCID of the vpc",
+                "Export" : { "Name" : {"Fn::Sub": "${AWS::StackName}-VPCID" }}
+
+                }
+
+            }
+}
+
