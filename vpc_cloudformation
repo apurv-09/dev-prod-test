@@ -173,7 +173,8 @@
                 }
             },
 
-	    "StageDBEC2SecurityGroup": {
+	    "Stage
+	    EC2SecurityGroup": {
             "Type": "AWS::EC2::SecurityGroup",
             "Properties" : {
                 "GroupDescription": "Open staging database for access",
@@ -186,14 +187,6 @@
                 }]
             }
         },
-
-    	"StageDBSubnetGroup" : {
-            "Type" : "AWS::RDS::DBSubnetGroup",
-            "Properties" : {
-                "DBSubnetGroupDescription" : "WebServer DB subnet group for staging",
-                "SubnetIds" : [{ "Ref" : "PrivateSubnet1" }, {  "Ref" : "PrivateSubnet2" } ]
-                }
-            },
             
         "NatGateway": {
             "Type": "AWS::EC2::NatGateway",
