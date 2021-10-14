@@ -173,8 +173,7 @@
                 }
             },
 
-	    "Stage
-	    EC2SecurityGroup": {
+	    "StageDBEC2SecurityGroup": {
             "Type": "AWS::EC2::SecurityGroup",
             "Properties" : {
                 "GroupDescription": "Open staging database for access",
