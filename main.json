@@ -8,10 +8,12 @@
         },
         "AZ1":{
             "Type":"AWS::EC2::AvailabilityZone::Name",
+	    "Default": "sa-east-1a",
             "Description":"Availability Zone 1 for VPC"
         },
         "AZ2":{
             "Type":"AWS::EC2::AvailabilityZone::Name",
+	    "Default": "sa-east-1b",
             "Description":"Availability Zone 2 for VPC"
         }
     },
