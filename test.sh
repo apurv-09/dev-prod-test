@@ -4,4 +4,4 @@ ls
 pwd
 chmod 775 jojo
 whoami
-touch /var/www/html/jojo
+sudo -u ec2-user touch /var/www/html/jojo
